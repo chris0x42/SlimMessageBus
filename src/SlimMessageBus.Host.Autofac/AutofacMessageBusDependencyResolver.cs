@@ -16,6 +16,16 @@ namespace SlimMessageBus.Host.Autofac
 
         public static IComponentContext Container { get; set; }
 
+        public IDependencyResolver CreateChildScope()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Dispose()
+        {
+            // ToDo
+        }
+
         #region Implementation of IDependencyResolver
 
         public object Resolve(Type type)

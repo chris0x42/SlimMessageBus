@@ -13,6 +13,16 @@ namespace SlimMessageBus.Host.ServiceLocator
             _logger = logger;
         }
 
+        public IDependencyResolver CreateChildScope()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Dispose()
+        {
+            // ToDo
+        }
+
         #region Implementation of IDependencyResolver
 
         public object Resolve(Type type)

@@ -53,6 +53,14 @@ namespace SlimMessageBus.Host.AspNetCore
             return currentServiceProvider.GetService(type);
         }
 
+        public IDependencyResolver CreateChildScope()
+            => new MsDependencyInjectionChildDependencyResolver(_serviceProvider.CreateScope());
+
+
+        public void Dispose()
+        {
+        }
+
         #endregion
     }
 }
