@@ -7,8 +7,10 @@ namespace SlimMessageBus.Host
     {
         private static readonly AsyncLocal<IDependencyResolver> _current = new AsyncLocal<IDependencyResolver>();
 
-        public static IDependencyResolver Current => _current.Value;
-
-        internal static void SetCurrent(IDependencyResolver current) => _current.Value = current;
+        public static IDependencyResolver Current
+        {
+            get => _current.Value;
+            internal set => _current.Value = value;
+        }
     }
 }

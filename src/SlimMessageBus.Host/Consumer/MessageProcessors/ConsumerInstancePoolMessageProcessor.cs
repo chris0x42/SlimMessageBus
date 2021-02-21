@@ -91,7 +91,7 @@ namespace SlimMessageBus.Host
                     try
                     {
                         // Set MessageScope.Current, so any future integration might need to use that
-                        MessageScope.SetCurrent(messageScope);
+                        MessageScope.Current = messageScope;
 
                         var consumerInstance = messageScope.Resolve(_consumerSettings.ConsumerType);
                         try
@@ -112,7 +112,7 @@ namespace SlimMessageBus.Host
                         }
 
                         // Clear the MessageScope.Current
-                        MessageScope.SetCurrent(null);
+                        MessageScope.Current = null;
                     }
                     finally
                     {
