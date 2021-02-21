@@ -14,7 +14,7 @@ namespace SlimMessageBus.Host.DependencyResolver
             _lookup = lookup;
         }
 
-        public IDependencyResolver CreateChildScope() => this;
+        public IDependencyResolver CreateScope() => this;
 
         public void Dispose()
         {

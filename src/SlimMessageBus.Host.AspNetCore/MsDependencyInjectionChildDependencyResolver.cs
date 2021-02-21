@@ -11,7 +11,7 @@ namespace SlimMessageBus.Host.AspNetCore
         public MsDependencyInjectionChildDependencyResolver(IServiceScope serviceProvider) 
             => this.serviceProvider = serviceProvider;
 
-        public IDependencyResolver CreateChildScope() 
+        public IDependencyResolver CreateScope() 
             => new MsDependencyInjectionChildDependencyResolver(serviceProvider.ServiceProvider.CreateScope());
 
         public void Dispose() 

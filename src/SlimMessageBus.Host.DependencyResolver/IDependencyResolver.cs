@@ -17,6 +17,6 @@ namespace SlimMessageBus.Host.DependencyResolver
         /// Creates a child scope from the current dependency resolver.
         /// </summary>
         /// <returns></returns>
-        IDependencyResolver CreateChildScope();
+        IDependencyResolver CreateScope();
     }
 }

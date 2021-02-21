@@ -16,7 +16,7 @@ namespace SlimMessageBus.Host.Autofac
 
         public static IComponentContext Container { get; set; }
 
-        public IDependencyResolver CreateChildScope()
+        public IDependencyResolver CreateScope()
         {
             throw new NotImplementedException();
         }

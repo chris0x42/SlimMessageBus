@@ -41,11 +41,17 @@ namespace SlimMessageBus.Host.Config
 
         #endregion
 
+        /// <summary>
+        /// Determines if a child scope is created for the message consuption. The consumer instance is then derived from that scope.
+        /// </summary>
+        public bool IsMessageScopeEnabledDefault { get; set; }
+
         public MessageBusSettings()
         {
             Producers = new List<ProducerSettings>();
             Consumers = new List<ConsumerSettings>();
             MessageWithHeadersSerializer = new MessageWithHeadersSerializer();
+            IsMessageScopeEnabledDefault = true;
         }
 
         public virtual void MergeFrom(MessageBusSettings settings)

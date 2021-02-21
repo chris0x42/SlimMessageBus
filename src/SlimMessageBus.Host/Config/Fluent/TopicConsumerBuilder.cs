@@ -116,5 +116,29 @@ namespace SlimMessageBus.Host.Config
             ConsumerSettings.Instances = numberOfInstances;
             return this;
         }
+
+        /// <summary>
+        /// Enable (or disable) creation of DI child scope for each meesage.
+        /// </summary>
+        /// <param name="enabled"></param>
+        /// <returns></returns>
+        public TopicConsumerBuilder<TMessage> PerMessageScopeEnabled(bool enabled)
+        {
+            ConsumerSettings.IsMessageScopeEnabled = enabled;
+            return this;
+        }
+
+        /// <summary>
+        /// Enable (or disable) disposal of consumer after message consumption.
+        /// </summary>
+        /// <remarks>This should be used in conjuction with <see cref="PerMessageScopeEnabled"/>.</remarks>
+        /// <param name="enabled"></param>
+        /// <returns></returns>
+        public TopicConsumerBuilder<TMessage> DisposeConsumerEnabled(bool enabled)
+        {
+            ConsumerSettings.IsDisposeConsumerEnabled = enabled;
+            return this;
+        }
+
     }
 }

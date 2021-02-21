@@ -16,7 +16,7 @@ namespace SlimMessageBus.Host.Unity
 
         public static IUnityContainer Container { get; set; }
 
-        public IDependencyResolver CreateChildScope()
+        public IDependencyResolver CreateScope()
         {
             throw new NotImplementedException();
         }
