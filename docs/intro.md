@@ -269,7 +269,7 @@ Please consult the individual transport provider documentation to see what is av
 
 #### Per-message DI scope
 
-For dependency resolution (DI) container plugins that support child scopes, the SMB can be configures to create a DI scope for every message being consumed.
+SMB can be configures to create a DI scope for every message being consumed. That is if the DI container chosen supports child scopes.
 This allows to have a scoped `IConsumer<T>` or `IRequestHandler<TRequest, TResponse>` which can have any dependant collaborators that are scoped too (e.g. EF Core DataContext).
 
 ```cs
@@ -281,21 +281,19 @@ mbb.PerMessageScopeEnabled(true); // the default setting for each consumer is to
 mbb.Consume<Message>(x => x
   .Topic("topic")
   .WithConsumer<TConsumer>()
-  .Instances(1)
 );
 
 // AnotherConsumer will be resolved from the root DI scope for each message
 mbb.Consume<Message2>(x => x
   .Topic("topic2")
   .WithConsumer<TConsumer2>()
-  .Instances(1)
   .PerMessageScopeEnabled(false) // override the default setting
 );
 ```
 
 > Per-message scope is enabled by default, which should work for most scenarios.
 
-For more advanced scenarios (third-party plugins) the SMB runtime provides a static accessor `MessageScope.Current` which allows to get ahold of the currently running message scope.
+For more advanced scenarios (third-party plugins) the SMB runtime provides a static accessor `MessageScope.Current` which allows to get ahold of the message scope for the currently running consumer instance.
 
 #### Concurrently processed messages
 
