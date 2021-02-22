@@ -10,7 +10,7 @@ namespace SlimMessageBus.Host
         public static IDependencyResolver Current
         {
             get => _current.Value;
-            internal set => _current.Value = value;
+            set => _current.Value = value;
         }
     }
 }

@@ -7,7 +7,8 @@ using SlimMessageBus.Host.Config;
 namespace SlimMessageBus.Host
 {
     /// <summary>
-    /// Represents a pool of consumer instance that compete to handle a message.
+    /// Represents a set of consumer instances that compete to process a message. 
+    /// Instances are obtained from <see cref="IDependencyResolver"/> upon message arrival.
     /// </summary>
     /// <typeparam name="TMessage"></typeparam>
     public class ConsumerInstancePoolMessageProcessor<TMessage> : IMessageProcessor<TMessage> where TMessage : class
@@ -19,10 +20,12 @@ namespace SlimMessageBus.Host
 
         private readonly Func<TMessage, byte[]> _messagePayloadProvider;
 
+        private readonly bool _createMessageScope;
+
+        private readonly SemaphoreSlim _concurrentInstancesSemaphore;
+
         private readonly bool _consumerWithContext;
         private readonly Action<TMessage, ConsumerContext> _consumerContextInitializer;
-        private readonly SemaphoreSlim _concurrentInstancesSemaphore;
-        private readonly bool _createMessageScope;
 
         public ConsumerInstancePoolMessageProcessor(ConsumerSettings consumerSettings, MessageBusBase messageBus, Func<TMessage, byte[]> messagePayloadProvider, Action<TMessage, ConsumerContext> consumerContextInitializer = null)
         {
@@ -33,7 +36,8 @@ namespace SlimMessageBus.Host
             _messageBus = messageBus ?? throw new ArgumentNullException(nameof(messageBus));
             _messagePayloadProvider = messagePayloadProvider ?? throw new ArgumentNullException(nameof(messagePayloadProvider));
 
-            _createMessageScope = _consumerSettings.IsMessageScopeEnabled ?? _messageBus.Settings.IsMessageScopeEnabledDefault;
+            _createMessageScope = _messageBus.IsMessageScopeEnabled(_consumerSettings);
+
             _consumerContextInitializer = consumerContextInitializer;
             _consumerWithContext = typeof(IConsumerContextAware).IsAssignableFrom(consumerSettings.ConsumerType);
 

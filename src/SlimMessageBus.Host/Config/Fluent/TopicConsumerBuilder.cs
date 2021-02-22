@@ -139,6 +139,5 @@ namespace SlimMessageBus.Host.Config
             ConsumerSettings.IsDisposeConsumerEnabled = enabled;
             return this;
         }
-
     }
 }

@@ -8,7 +8,7 @@ using SlimMessageBus.Host.Config;
 namespace SlimMessageBus.Host.Memory
 {
     /// <summary>
-    /// In memory message bus <see cref="IMessageBus"/> implementation to use for in process message passing.
+    /// In-memory message bus <see cref="IMessageBus"/> implementation to use for in process message passing.
     /// </summary>
     public class MemoryMessageBus : MessageBusBase
     {
@@ -22,7 +22,7 @@ namespace SlimMessageBus.Host.Memory
         {
             _logger = LoggerFactory.CreateLogger<MemoryMessageBus>();
             ProviderSettings = providerSettings ?? throw new ArgumentNullException(nameof(providerSettings));
-            
+
             OnBuildProvider();
         }
 
@@ -49,55 +49,108 @@ namespace SlimMessageBus.Host.Memory
         {
             if (!_consumersByTopic.TryGetValue(name, out var consumers))
             {
-                _logger.LogDebug("No consumers interested in message type {0} on topic {1}", messageType, name);
+                _logger.LogDebug("No consumers interested in message type {messageType} on topic {topic}", messageType, name);
                 return Task.CompletedTask;
             }
 
             var tasks = new LinkedList<Task>();
             foreach (var consumer in consumers)
             {
-                // obtain the consumer from DI
-                _logger.LogDebug("Resolving consumer type {0}", consumer.ConsumerType);
-                var consumerInstance = Settings.DependencyResolver.Resolve(consumer.ConsumerType);
-                if (consumerInstance == null)
+                var task = OnMessageProduced(messageType, message, name, messagePayload, messageWithHeaders, consumer);
+                if (task != null)
                 {
-                    _logger.LogWarning("The dependency resolver does not know how to create an instance of {0} - the consumer will be skipped", consumer.ConsumerType);
-                    continue;
+                    tasks.AddLast(task);
                 }
-
-                var messageForConsumer = !ProviderSettings.EnableMessageSerialization
-                    ? message // prevent deep copy of the message
-                    : consumer.ConsumerMode == ConsumerMode.RequestResponse
-                        ? DeserializeRequest(messageType, messagePayload, out var _) // will pass a deep copy of the message
-                        : DeserializeMessage(messageType, messagePayload); // will pass a deep copy of the message
-
-                _logger.LogDebug("Invoking {0} {1}", consumer.ConsumerMode == ConsumerMode.Consumer ? "consumer" : "handler", consumerInstance.GetType());
-                var task = consumer.ConsumerMethod(consumerInstance, messageForConsumer, consumer.Topic);
-
-                if (consumer.ConsumerMode == ConsumerMode.RequestResponse)
-                {
-                    var requestId = messageWithHeaders.Headers[ReqRespMessageHeaders.RequestId];
-
-                    task = task.ContinueWith(x =>
-                    {
-                        if (x.IsFaulted || x.IsCanceled)
-                        {
-                            return OnResponseArrived(null, name, requestId, x.IsCanceled ? "Cancelled" : x.Exception.Message, null);
-                        }
-
-                        var response = consumer.ConsumerMethodResult(x);
-                        var responsePayload = SerializeMessage(consumer.ResponseType, response);
-
-                        return OnResponseArrived(responsePayload, name, requestId, null, response);
-
-                    }, TaskScheduler.Current).Unwrap();
-                }
-
-                tasks.AddLast(task);
             }
 
             _logger.LogDebug("Waiting on {0} consumer tasks", tasks.Count);
             return Task.WhenAll(tasks);
+        }
+
+        private async Task OnMessageProduced(Type messageType, object message, string name, byte[] messagePayload, MessageWithHeaders messageWithHeaders, ConsumerSettings consumer)
+        {
+            // ToDo: Extension: In case of IMessageBus.Publish do not wait for the consumer method see https://github.com/zarusz/SlimMessageBus/issues/37
+
+            string responseError = null;
+            Task consumerTask = null;
+
+            try
+            {
+                consumerTask = ExecuteConsumer(messageType, message, messagePayload, consumer);
+                await consumerTask.ConfigureAwait(false);
+            }
+#pragma warning disable CA1031 // Intended, a catch all situation
+            catch (Exception e)
+#pragma warning restore CA1031
+            {
+                responseError = e.Message;
+            }
+
+            if (consumer.ConsumerMode == ConsumerMode.RequestResponse)
+            {
+                var requestId = messageWithHeaders.Headers[ReqRespMessageHeaders.RequestId];
+
+                if (responseError != null)
+                {
+                    await OnResponseArrived(null, name, requestId, responseError, null).ConfigureAwait(false);
+                }
+                else
+                {
+                    var response = consumer.ConsumerMethodResult(consumerTask);
+                    var responsePayload = SerializeMessage(consumer.ResponseType, response);
+
+                    await OnResponseArrived(responsePayload, name, requestId, null, response).ConfigureAwait(false);
+                }
+            }
+        }
+
+        private async Task ExecuteConsumer(Type messageType, object message, byte[] messagePayload, ConsumerSettings consumerSettings)
+        {
+            var createMessageScope = IsMessageScopeEnabled(consumerSettings);
+            var messageScope = createMessageScope
+                ? Settings.DependencyResolver.CreateScope()
+                : Settings.DependencyResolver;
+
+            try
+            {
+                MessageScope.Current = messageScope;
+
+                // obtain the consumer from DI
+                _logger.LogDebug("Resolving consumer type {consumerType}", consumerSettings.ConsumerType);
+                var consumerInstance = messageScope.Resolve(consumerSettings.ConsumerType);
+                if (consumerInstance == null)
+                {
+                    throw new ConfigurationMessageBusException($"The dependency resolver does not know how to create an instance of {consumerSettings.ConsumerType}");
+                }
+
+                try
+                {
+                    var messageForConsumer = !ProviderSettings.EnableMessageSerialization
+                        ? message // prevent deep copy of the message
+                        : consumerSettings.ConsumerMode == ConsumerMode.RequestResponse
+                            ? DeserializeRequest(messageType, messagePayload, out var _) // will pass a deep copy of the message
+                            : DeserializeMessage(messageType, messagePayload); // will pass a deep copy of the message
+
+                    _logger.LogDebug("Invoking {0} {1}", consumerSettings.ConsumerMode == ConsumerMode.Consumer ? "consumer" : "handler", consumerInstance.GetType());
+                    await consumerSettings.ConsumerMethod(consumerInstance, messageForConsumer, consumerSettings.Topic).ConfigureAwait(false);
+                }
+                finally
+                {
+                    if (consumerSettings.IsDisposeConsumerEnabled && consumerInstance is IDisposable consumerInstanceDisposable)
+                    {
+                        consumerInstanceDisposable.DisposeSilently("ConsumerInstance", _logger);
+                    }
+                }
+
+                MessageScope.Current = null;
+            }
+            finally
+            {
+                if (createMessageScope)
+                {
+                    messageScope.DisposeSilently("Scope", _logger);
+                }
+            }
         }
 
         public override byte[] SerializeMessage(Type messageType, object message)
@@ -134,5 +187,8 @@ namespace SlimMessageBus.Host.Memory
         }
 
         #endregion
+
+        public override bool IsMessageScopeEnabled(ConsumerSettings consumerSettings)
+            => consumerSettings.IsMessageScopeEnabled ?? Settings.IsMessageScopeEnabled ?? false; // by default Memory Bus has scoped message disabled
     }
 }

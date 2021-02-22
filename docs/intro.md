@@ -267,6 +267,53 @@ public class PingConsumer : IConsumer<PingMessage>, IConsumerContextAware
 
 Please consult the individual transport provider documentation to see what is available.
 
+#### Per-message DI scope
+
+For dependency resolution (DI) container plugins that support child scopes, the SMB can be configures to create a DI scope for every message being consumed.
+This allows to have a scoped `IConsumer<T>` or `IRequestHandler<TRequest, TResponse>` which can have any dependant collaborators that are scoped too (e.g. EF Core DataContext).
+
+```cs
+IMessageBusBuilder mbb;
+
+mbb.PerMessageScopeEnabled(true); // the default setting for each consumer is to create scope in the DI container for every processed message
+
+// SomeConsumer will be resolved from a child scope created for each consumed message - the default will apply
+mbb.Consume<Message>(x => x
+  .Topic("topic")
+  .WithConsumer<TConsumer>()
+  .Instances(1)
+);
+
+// AnotherConsumer will be resolved from the root DI scope for each message
+mbb.Consume<Message2>(x => x
+  .Topic("topic2")
+  .WithConsumer<TConsumer2>()
+  .Instances(1)
+  .PerMessageScopeEnabled(false) // override the default setting
+);
+```
+
+> Per-message scope is enabled by default, which should work for most scenarios.
+
+For more advanced scenarios (third-party plugins) the SMB runtime provides a static accessor `MessageScope.Current` which allows to get ahold of the currently running message scope.
+
+#### Concurrently processed messages
+
+The `.Instances(n)` allows to set the `n` number of concurrently processed messages within the same consumer type.
+
+```cs
+mbb.Consume<SomeMessage>(x => x
+  .Topic("topic")
+  .WithConsumer<TConsumer>()
+  .Instances(3) // At most there will be 3 instances of messages processsed simultaneously
+);
+```
+
+> The default is `1`.
+
+SMB manages a critical section for each consumer type registration that ensures there are at most `n` processed messages.
+Each processing of a message resolves the `TConsumer` instance from the DI.
+
 ## Request-response communication
 
 SMB provides implementation of request-response over topics or queues - depending what the underlying provider supports.
