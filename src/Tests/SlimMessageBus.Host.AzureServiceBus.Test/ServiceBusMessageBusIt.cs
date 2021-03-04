@@ -179,8 +179,8 @@ namespace SlimMessageBus.Host.AzureServiceBus.Test
             // assert
 
             // ensure number of instances of consumers created matches
-            consumersCreated.Count.Should().Be(subscribers * concurrency);
-            consumersReceivedMessages.Length.Should().Be(subscribers * concurrency);
+            consumersCreated.Count.Should().Be(producedMessages.Count);
+            consumersReceivedMessages.Length.Should().Be(subscribers * producedMessages.Count);
 
             // ensure all messages arrived 
             var totalReceivedMessages = consumersReceivedMessages.SelectMany(x => x).ToList();

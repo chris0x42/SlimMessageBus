@@ -41,7 +41,7 @@ namespace SlimMessageBus.Host
             _consumerContextInitializer = consumerContextInitializer;
             _consumerWithContext = typeof(IConsumerContextAware).IsAssignableFrom(consumerSettings.ConsumerType);
 
-            _concurrentInstancesSemaphore = new SemaphoreSlim(0, _consumerSettings.Instances);
+            _concurrentInstancesSemaphore = new SemaphoreSlim(_consumerSettings.Instances);
         }
 
         #region IDisposable
